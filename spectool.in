@@ -43,7 +43,7 @@ foreach (@rpm_sections) {
 	$rpm_sections{$_} = 1;
 }
 
-my @protocols = qw/ftp http https/;
+my @protocols = qw/ftp http https s3/;
 my $protocols_re = '(?:' . join ('|', @protocols) . ')';
 
 my @defines;
@@ -214,13 +214,18 @@ sub retrieve {
 				return 0;
 			}
 		}
-		# Note: -k/--insecure is intentionally not here; add it to
-		#       $CURLRC if you want it.
-		my @cmd = (qw (curl --fail --remote-time --location
-			       --output), $path,
-			   '--user-agent', "spectool/$VERSION");
-		push(@cmd, '--config', $CURLRC) if (-e $CURLRC);
-		push(@cmd, $url);
+		my @cmd = ();
+		if (substr($url, 0, 5) eq 's3://') {
+			push(@cmd, (qw (aws s3 cp), $url, $path));
+		} else {
+			# Note: -k/--insecure is intentionally not here; add it to
+			#       $CURLRC if you want it.
+			push(@cmd, (qw (curl --fail --remote-time --location
+				       --output), $path,
+				   '--user-agent', "spectool/$VERSION");
+			push(@cmd, '--config', $CURLRC) if (-e $CURLRC);
+			push(@cmd, $url);
+		}
 		print "--> @cmd\n" if ($verbose > 1);
 		if (! $dryrun) {
 			system @cmd;
